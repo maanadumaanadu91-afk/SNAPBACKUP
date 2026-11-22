@@ -1,0 +1,2351 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnapBackup — Auto Backups for Modern Apps</title>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            },
+          },
+          boxShadow: {
+            'soft': '0 4px 24px -4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04)',
+            'code': '0 20px 50px -12px rgba(15, 23, 42, 0.25)',
+            'glow': '0 0 24px rgba(99, 102, 241, 0.45)',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Subtle radial hero backdrop matching modern developer SaaS aesthetic */
+    .hero-bg {
+      background-image:
+        radial-gradient(at 50% 0%, rgba(99, 102, 241, 0.11) 0px, transparent 58%),
+        radial-gradient(at 85% 15%, rgba(79, 70, 229, 0.07) 0px, transparent 45%);
+    }
+
+    /* Subtle grid pattern for hero & CTA */
+    .bg-grid-slate {
+      background-size: 32px 32px;
+      background-image: linear-gradient(to right, rgba(226, 232, 240, 0.45) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(226, 232, 240, 0.45) 1px, transparent 1px);
+    }
+
+    /* Custom subtle scrollbars for code blocks and vault list */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.55);
+    }
+
+    /* Syntax highlight token colors (VS Code / One Dark inspired on #0f172a) */
+    .tok-comment { color: #64748b; font-style: italic; }
+    .tok-string  { color: #86efac; }
+    .tok-keyword { color: #c084fc; }
+    .tok-number  { color: #fdba74; }
+    .tok-func    { color: #60a5fa; }
+    .tok-tag     { color: #f472b6; }
+    .tok-attr    { color: #93c5fd; }
+    .tok-key-hl  {
+      background: rgba(99, 102, 241, 0.28);
+      border: 1px solid rgba(129, 140, 248, 0.55);
+      color: #e0e7ff;
+      padding: 1px 5px;
+      border-radius: 5px;
+      font-weight: 600;
+    }
+
+    /* Key injection flash animation */
+    @keyframes keyPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+      70%  { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    }
+    .animate-key-pulse {
+      animation: keyPulse 0.9s ease-out;
+    }
+
+    /* Accordion smooth transition */
+    .faq-content {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.25s ease-out;
+    }
+    .faq-item[data-open="true"] .faq-content {
+      grid-template-rows: 1fr;
+    }
+    .faq-inner {
+      overflow: hidden;
+    }
+    .faq-item[data-open="true"] .faq-chevron {
+      transform: rotate(180deg);
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-900 font-sans antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+  <!-- ===================================================================== -->
+  <!-- 1. STICKY NAVBAR                                                      -->
+  <!-- ===================================================================== -->
+  <header class="sticky top-0 z-40 w-full bg-white/85 backdrop-blur-md border-b border-slate-200/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Brand Logo -->
+        <a href="#" class="flex items-center gap-2.5 group focus:outline-none">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-sm group-hover:shadow-md transition-shadow">
+            <!-- Cloud Sync Icon -->
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+          </div>
+          <span class="text-lg font-bold tracking-tight text-slate-900">
+            Snap<span class="text-indigo-600">Backup</span>
+          </span>
+        </a>
+
+        <!-- Desktop Navigation Links -->
+        <nav class="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600" aria-label="Main Navigation">
+          <a href="#features" class="hover:text-indigo-600 transition-colors">Features</a>
+          <a href="#how-it-works" class="hover:text-indigo-600 transition-colors">How it Works</a>
+          <a href="#playground" class="hover:text-indigo-600 transition-colors">Playground</a>
+          <a href="#faq" class="hover:text-indigo-600 transition-colors">FAQ</a>
+          <button type="button" onclick="openDocsModal()" class="hover:text-indigo-600 transition-colors cursor-pointer">Docs</button>
+        </nav>
+
+        <!-- Right Actions -->
+        <div class="flex items-center gap-2.5 sm:gap-3">
+          <!-- Live Vault Badge -->
+          <a href="#playground" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-xs font-semibold text-slate-700 hover:text-indigo-700 transition-all" title="View saved backups in Live Vault">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="hidden sm:inline">Live Vault</span>
+            <span id="nav-vault-count" class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-white text-indigo-600 border border-slate-200 font-mono text-[11px]">0</span>
+          </a>
+
+          <!-- Primary CTA -->
+          <a href="#step-1" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm hover:shadow transition-all">
+            Get Backup Key
+          </a>
+
+          <!-- Mobile Hamburger -->
+          <button id="mobile-menu-btn" type="button" class="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors" aria-label="Toggle Menu" aria-expanded="false">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Dropdown Menu -->
+      <div id="mobile-menu" class="hidden md:hidden pb-4 pt-2 border-t border-slate-100 space-y-1">
+        <a href="#features" class="mobile-nav-link block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600">Features</a>
+        <a href="#how-it-works" class="mobile-nav-link block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600">How it Works</a>
+        <a href="#playground" class="mobile-nav-link block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600">Playground</a>
+        <a href="#faq" class="mobile-nav-link block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600">FAQ</a>
+        <button type="button" onclick="openDocsModal(); toggleMobileMenu(false);" class="w-full text-left block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600">API Docs</button>
+        <div class="pt-2">
+          <a href="#step-1" class="mobile-nav-link block w-full text-center px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold">
+            Get Backup Key — Free
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===================================================================== -->
+    <!-- 2. HERO SECTION                                                       -->
+    <!-- ===================================================================== -->
+    <section class="relative overflow-hidden hero-bg pt-14 pb-20 sm:pt-20 sm:pb-28 border-b border-slate-100">
+      <div class="absolute inset-0 bg-grid-slate [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.85))] pointer-events-none"></div>
+
+      <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+          <!-- Hero Left Copy -->
+          <div class="lg:col-span-6 text-center lg:text-left">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold mb-6">
+              <span class="flex h-2 w-2 relative">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
+              </span>
+              Zero-Backend Auto-Save Backup API
+            </div>
+
+            <h1 class="text-4xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight text-slate-900 leading-[1.1]">
+              Auto Backups for <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Modern Apps</span>
+            </h1>
+
+            <p class="mt-5 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
+              Automatically save your app state, user settings, and JSON backups via a single API endpoint. No server or database code needed. Free to start!
+            </p>
+
+            <!-- Hero CTAs -->
+            <div class="mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5">
+              <a href="#step-1" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-base shadow-md hover:shadow-lg transition-all">
+                <span>Create your Backup Key — Free</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </a>
+              <a href="#playground" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-base border border-slate-200 shadow-sm transition-all">
+                Open Live Playground
+              </a>
+            </div>
+
+            <p class="mt-4 text-xs sm:text-sm text-slate-500 flex items-center justify-center lg:justify-start gap-2">
+              <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              No credit card required. Auto-save on change or on a schedule.
+            </p>
+          </div>
+
+          <!-- Hero Right Interactive Code Card -->
+          <div class="lg:col-span-6">
+            <div class="rounded-2xl bg-slate-900 border border-slate-800 shadow-code overflow-hidden">
+              <!-- macOS Window Bar -->
+              <div class="flex items-center justify-between px-4 py-3 bg-slate-800/90 border-b border-slate-700/80">
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full bg-rose-500/90"></span>
+                  <span class="w-3 h-3 rounded-full bg-amber-400/90"></span>
+                  <span class="w-3 h-3 rounded-full bg-emerald-500/90"></span>
+                  <span class="ml-2 text-xs font-mono text-slate-300 font-medium">auto-backup.js</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="copyHeroCode(this)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-slate-300 hover:text-white bg-slate-700/60 hover:bg-slate-700 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Code Body -->
+              <div class="relative p-4 sm:p-5 overflow-x-auto custom-scroll">
+                <pre id="hero-code-display" class="font-mono text-xs sm:text-[13px] leading-6 text-slate-200"></pre>
+              </div>
+
+              <!-- Action Bar with Prominent Glowing "Run this Code" Button -->
+              <div class="px-4 sm:px-5 py-3.5 bg-slate-800/60 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                  <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  <span>POST /v1/save</span>
+                </div>
+
+                <button id="hero-run-btn" type="button" onclick="runHeroCode()" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-glow hover:scale-[1.02] active:scale-[0.99] transition-all cursor-pointer">
+                  <svg id="hero-run-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  <svg id="hero-run-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                  </svg>
+                  <span id="hero-run-label">Run this Code</span>
+                </button>
+              </div>
+
+              <!-- Live Simulation Response Banner (Hidden until Run is clicked) -->
+              <div id="hero-response-banner" class="hidden border-t border-emerald-500/30 bg-emerald-950/60 px-4 sm:px-5 py-3.5">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      200 OK
+                    </span>
+                    <span id="hero-response-latency" class="text-[11px] font-mono text-emerald-300/80">38ms</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <button type="button" onclick="inspectLastHeroSnapshot()" class="text-xs font-semibold text-indigo-300 hover:text-indigo-200 underline underline-offset-2">
+                      View / Restore in Vault →
+                    </button>
+                  </div>
+                </div>
+                <pre id="hero-response-json" class="font-mono text-[11px] sm:text-xs text-emerald-200 overflow-x-auto custom-scroll"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 3. SOCIAL PROOF / METRICS STRIP                                       -->
+    <!-- ===================================================================== -->
+    <section class="py-12 bg-white border-b border-slate-100">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+          <div class="text-center p-4 rounded-xl bg-slate-50/70 border border-slate-200/70">
+            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">120,000+</div>
+            <div class="mt-1 text-xs sm:text-sm font-medium text-slate-500">Apps Protected</div>
+          </div>
+          <div class="text-center p-4 rounded-xl bg-slate-50/70 border border-slate-200/70">
+            <div class="text-2xl sm:text-3xl font-extrabold text-indigo-600 tracking-tight">18.5 million+</div>
+            <div class="mt-1 text-xs sm:text-sm font-medium text-slate-500">Snapshots Saved</div>
+          </div>
+          <div class="text-center p-4 rounded-xl bg-slate-50/70 border border-slate-200/70">
+            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">99.99%</div>
+            <div class="mt-1 text-xs sm:text-sm font-medium text-slate-500">Uptime SLA</div>
+          </div>
+          <div class="text-center p-4 rounded-xl bg-slate-50/70 border border-slate-200/70">
+            <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">&lt; 45ms</div>
+            <div class="mt-1 text-xs sm:text-sm font-medium text-slate-500">Avg Sync Time</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 4. "WORKS WITH ANY TECHNOLOGIES" STRIP                                -->
+    <!-- ===================================================================== -->
+    <section class="py-12 bg-slate-50/60 border-b border-slate-200/70">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <p class="text-xs font-bold uppercase tracking-[0.16em] text-slate-400 mb-6">
+          Works with any Technologies
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">JavaScript</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">React</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">Next.js</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">Vue.js</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">Flutter</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">React Native</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">Android (Kotlin)</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">iOS (Swift)</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">Electron</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">Python</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">Node.js</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">Capacitor</span>
+          <span class="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs hover:border-indigo-300 hover:text-indigo-700 transition-colors">PWA</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 5. 6-CARD FEATURE GRID                                                -->
+    <!-- ===================================================================== -->
+    <section id="features" class="py-20 sm:py-24 bg-white">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto mb-14">
+          <span class="text-xs font-bold uppercase tracking-widest text-indigo-600">Developer First</span>
+          <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+            Everything you need for effortless app backups
+          </h2>
+          <p class="mt-3 text-base text-slate-600">
+            Drop in one lightweight fetch request and stop worrying about data loss, sync conflicts, or cloud bucket configuration.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Card 1 -->
+          <div class="p-6 rounded-xl bg-white border border-slate-200 shadow-soft hover:border-indigo-200 transition-all">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">No Backend Code</h3>
+            <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+              Auto-save app state without setting up servers, S3 buckets, IAM policies, or database schemas.
+            </p>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="p-6 rounded-xl bg-white border border-slate-200 shadow-soft hover:border-indigo-200 transition-all">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">Smart Auto-Save Triggers</h3>
+            <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+              Trigger backups automatically on every state change (debounced), on app pause/close, or on a set timer.
+            </p>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="p-6 rounded-xl bg-white border border-slate-200 shadow-soft hover:border-indigo-200 transition-all">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">Encrypted Snapshots</h3>
+            <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+              All backup payloads are transmitted over TLS 1.3 HTTPS and encrypted at rest with AES-256 keys.
+            </p>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="p-6 rounded-xl bg-white border border-slate-200 shadow-soft hover:border-indigo-200 transition-all">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">Versioned History &amp; Rollback</h3>
+            <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+              Keep automatic snapshots for up to 3 years with instant diffing and one-click point-in-time restore.
+            </p>
+          </div>
+
+          <!-- Card 5 -->
+          <div class="p-6 rounded-xl bg-white border border-slate-200 shadow-soft hover:border-indigo-200 transition-all">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">Offline Queue Ready</h3>
+            <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+              Built-in retry logic buffers unsaved changes locally in IndexedDB/LocalStorage and syncs automatically when back online.
+            </p>
+          </div>
+
+          <!-- Card 6 -->
+          <div class="p-6 rounded-xl bg-white border border-slate-200 shadow-soft hover:border-indigo-200 transition-all">
+            <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">Export Anytime</h3>
+            <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+              Download full JSON backups anytime or forward snapshots straight to Google Drive, S3, or email.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 6. "HOW IT WORKS — EASY AS 1 2 3" INTERACTIVE SECTION                 -->
+    <!-- ===================================================================== -->
+    <section id="how-it-works" class="py-20 sm:py-24 bg-slate-50 border-y border-slate-200/80">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Section Title -->
+        <div class="text-center max-w-2xl mx-auto mb-16">
+          <span class="inline-flex items-center px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-wider">
+            Quickstart Guide
+          </span>
+          <h2 class="mt-3 text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+            How it works
+          </h2>
+          <p class="mt-3 text-base sm:text-lg text-slate-600">
+            Easy as <span class="font-bold text-indigo-600">1 2 3</span>. Just follow the steps and your app has automatic backups.
+          </p>
+        </div>
+
+        <div class="space-y-12">
+
+          <!-- =============================================================== -->
+          <!-- STEP 1: CREATE YOUR BACKUP KEY                                  -->
+          <!-- =============================================================== -->
+          <div id="step-1" class="scroll-mt-24 rounded-2xl bg-white border border-slate-200 shadow-soft p-6 sm:p-8">
+            <div class="flex flex-col sm:flex-row sm:items-start gap-5">
+              <div class="w-11 h-11 rounded-full bg-indigo-600 text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-sm">
+                1
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="text-xl sm:text-2xl font-bold text-slate-900">
+                  Create Your Backup Key
+                </h3>
+                <p class="mt-1.5 text-sm sm:text-base text-slate-600">
+                  Your unique Backup Key connects your app to your encrypted vault. Once generated, it automatically fills into every code snippet on this page.
+                </p>
+
+                <!-- Key Generator Form -->
+                <form id="key-generator-form" class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label for="app-name-input" class="block text-xs font-semibold uppercase tracking-wide text-slate-600 mb-1.5">
+                      App Name
+                    </label>
+                    <input
+                      id="app-name-input"
+                      type="text"
+                      value="My Todo App"
+                      placeholder="e.g. Budget Tracker"
+                      required
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label for="target-input" class="block text-xs font-semibold uppercase tracking-wide text-slate-600 mb-1.5">
+                      Email / Storage Target
+                    </label>
+                    <input
+                      id="target-input"
+                      type="text"
+                      value="backups@myapp.dev"
+                      placeholder="you@domain.com or s3://bucket"
+                      required
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label for="interval-select" class="block text-xs font-semibold uppercase tracking-wide text-slate-600 mb-1.5">
+                      Auto-Save Interval
+                    </label>
+                    <select
+                      id="interval-select"
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+                    >
+                      <option value="on_change">On Change (Debounced 1.2s)</option>
+                      <option value="5m">Every 5 Minutes</option>
+                      <option value="daily">Daily Snapshot</option>
+                    </select>
+                  </div>
+
+                  <div class="sm:col-span-3 flex flex-wrap items-center justify-between gap-3 pt-1">
+                    <p class="text-xs text-slate-500">
+                      Key is scoped to write-only snapshots by default for safe client-side usage.
+                    </p>
+                    <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm hover:shadow transition-all cursor-pointer">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                      <span>Generate Backup Key</span>
+                    </button>
+                  </div>
+                </form>
+
+                <!-- Generated Key Output Box -->
+                <div id="generated-key-box" class="hidden mt-5 p-4 rounded-xl bg-indigo-50/80 border border-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">
+                        Active Key Injected
+                      </span>
+                      <span id="generated-key-meta" class="text-xs text-slate-600 truncate"></span>
+                    </div>
+                    <div class="mt-1.5 font-mono text-sm sm:text-base font-semibold text-indigo-950 break-all" id="generated-key-value"></div>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" onclick="copyCurrentKey(this)" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 text-xs font-semibold shadow-xs transition-all cursor-pointer">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span>Copy Key</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- =============================================================== -->
+          <!-- STEP 2: ADD AUTO-SAVE CODE TO YOUR APP                          -->
+          <!-- =============================================================== -->
+          <div id="step-2" class="scroll-mt-24 rounded-2xl bg-white border border-slate-200 shadow-soft p-6 sm:p-8">
+            <div class="flex flex-col sm:flex-row sm:items-start gap-5">
+              <div class="w-11 h-11 rounded-full bg-indigo-600 text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-sm">
+                2
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 class="text-xl sm:text-2xl font-bold text-slate-900">
+                      Add Auto-Save Code to Your App
+                    </h3>
+                    <p class="mt-1 text-sm sm:text-base text-slate-600">
+                      Pick your stack and paste the auto-backup snippet directly into your app.
+                    </p>
+                  </div>
+
+                  <!-- Show Advanced Example Toggle (Web3Forms signature control) -->
+                  <button
+                    id="advanced-toggle-btn"
+                    type="button"
+                    onclick="toggleAdvancedCode()"
+                    class="self-start sm:self-center inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 text-xs font-semibold text-slate-700 hover:text-indigo-700 transition-all cursor-pointer"
+                  >
+                    <span id="advanced-dot" class="w-2 h-2 rounded-full bg-slate-400 transition-colors"></span>
+                    <span id="advanced-toggle-label">Show Advanced Example</span>
+                  </button>
+                </div>
+
+                <!-- Tabbed Code Viewer -->
+                <div class="mt-5 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md">
+                  <!-- Tabs & Copy Bar -->
+                  <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 bg-slate-800/90 border-b border-slate-700/80">
+                    <div class="flex items-center gap-1 overflow-x-auto custom-scroll pb-0.5 sm:pb-0" role="tablist" aria-label="Language examples">
+                      <button type="button" data-tab="js" onclick="switchCodeTab('js')" class="code-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap">
+                        JavaScript
+                      </button>
+                      <button type="button" data-tab="react" onclick="switchCodeTab('react')" class="code-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap">
+                        React Hook
+                      </button>
+                      <button type="button" data-tab="html" onclick="switchCodeTab('html')" class="code-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap">
+                        HTML / Vanilla
+                      </button>
+                      <button type="button" data-tab="flutter" onclick="switchCodeTab('flutter')" class="code-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap">
+                        Flutter (Dart)
+                      </button>
+                      <button type="button" data-tab="node" onclick="switchCodeTab('node')" class="code-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap">
+                        Node / CLI
+                      </button>
+                    </div>
+
+                    <button type="button" onclick="copyStep2Code(this)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700/70 hover:bg-indigo-600 text-slate-200 hover:text-white text-xs font-semibold transition-colors cursor-pointer shrink-0">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span>Copy Code</span>
+                    </button>
+                  </div>
+
+                  <!-- Advanced Mode Pill Notice -->
+                  <div id="advanced-info-bar" class="hidden px-4 py-2 bg-indigo-950/70 border-b border-indigo-800/60 text-xs text-indigo-200 flex items-center justify-between gap-2">
+                    <span>
+                      <strong>Advanced Mode:</strong> Includes debounced auto-save, <code class="font-mono text-indigo-300">beforeunload</code> flush, 90-day retention, and point-in-time restore.
+                    </span>
+                  </div>
+
+                  <!-- Highlighted Code Content -->
+                  <div class="p-4 sm:p-5 overflow-x-auto custom-scroll max-h-[460px]">
+                    <pre id="step2-code-display" class="font-mono text-xs sm:text-[13px] leading-6 text-slate-200"></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- =============================================================== -->
+          <!-- STEP 3: ADD ACCESS KEY & TEST LIVE AUTO-SAVE                    -->
+          <!-- =============================================================== -->
+          <div id="playground" class="scroll-mt-24 rounded-2xl bg-white border border-slate-200 shadow-soft p-6 sm:p-8">
+            <div class="flex flex-col sm:flex-row sm:items-start gap-5">
+              <div class="w-11 h-11 rounded-full bg-indigo-600 text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-sm">
+                3
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="text-xl sm:text-2xl font-bold text-slate-900">
+                  Add Access Key &amp; Test Live Auto-Save
+                </h3>
+                <p class="mt-1.5 text-sm sm:text-base text-slate-600">
+                  Include your <code class="font-mono text-xs bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded border border-slate-200">access_key</code> in your backup payload, then test live auto-saving right below. Edit the JSON and watch it sync automatically into your Live Vault!
+                </p>
+
+                <!-- Highlighted access_key config strip -->
+                <div class="mt-4 rounded-xl bg-slate-900 border border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                  <div class="font-mono text-xs sm:text-sm text-slate-200 overflow-x-auto custom-scroll">
+                    <span class="text-slate-400">const</span> config = { <span class="text-sky-300">access_key</span>: <span id="step3-key-highlight" class="tok-key-hl">"YOUR_BACKUP_KEY_HERE"</span> };
+                  </div>
+                  <button type="button" onclick="copyConfigLine(this)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 hover:text-white transition-colors cursor-pointer">
+                    <span>Copy Line</span>
+                  </button>
+                </div>
+
+                <!-- Live Auto-Save Playground & Vault Split Panel -->
+                <div class="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <!-- LEFT: Live JSON App State Editor -->
+                  <div class="lg:col-span-6 flex flex-col rounded-xl border border-slate-200 bg-slate-50/70 overflow-hidden">
+                    <!-- Editor Header -->
+                    <div class="px-4 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-slate-900">App State JSON</span>
+                        <!-- Live Sync Status Pill -->
+                        <span id="autosave-status-pill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span id="autosave-status-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          <span id="autosave-status-text">Ready</span>
+                        </span>
+                      </div>
+
+                      <!-- Auto-Save on Edit Toggle Switch -->
+                      <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <span class="text-xs font-semibold text-slate-600">Auto-Save on Edit</span>
+                        <input id="autosave-toggle" type="checkbox" checked class="sr-only peer" />
+                        <div class="relative w-9 h-5 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                      </label>
+                    </div>
+
+                    <!-- JSON Textarea -->
+                    <div class="relative flex-1 bg-slate-900">
+                      <textarea
+                        id="playground-json-editor"
+                        spellcheck="false"
+                        rows="13"
+                        aria-label="Editable App State JSON"
+                        class="w-full h-full min-h-[270px] p-4 bg-slate-900 text-emerald-300 font-mono text-xs sm:text-[13px] leading-6 focus:outline-none resize-none custom-scroll"
+                      ></textarea>
+                      <!-- JSON Validity Error Banner -->
+                      <div id="json-error-bar" class="hidden px-4 py-2 bg-rose-950/90 border-t border-rose-500/40 text-rose-200 font-mono text-xs"></div>
+                    </div>
+
+                    <!-- Editor Bottom Controls -->
+                    <div class="px-4 py-3 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <button type="button" onclick="formatPlaygroundJson()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-600 transition-colors cursor-pointer">
+                          Format JSON
+                        </button>
+                        <button type="button" onclick="mutateSampleState()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-600 transition-colors cursor-pointer">
+                          + Simulate Change
+                        </button>
+                      </div>
+
+                      <button type="button" onclick="saveSnapshotFromEditor('Manual')" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <span>Save Snapshot Now</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- RIGHT: Saved Backups Vault -->
+                  <div class="lg:col-span-6 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <!-- Vault Header -->
+                    <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                        <span class="text-sm font-bold text-slate-900">Saved Backups Vault</span>
+                        <span id="vault-panel-count" class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-mono text-[11px] font-bold">0</span>
+                      </div>
+
+                      <button id="clear-vault-btn" type="button" onclick="handleClearVaultClick()" class="text-xs font-semibold text-slate-500 hover:text-rose-600 transition-colors cursor-pointer">
+                        Clear All
+                      </button>
+                    </div>
+
+                    <!-- Vault Snapshot List -->
+                    <div id="vault-list" class="flex-1 max-h-[345px] overflow-y-auto divide-y divide-slate-100 custom-scroll">
+                      <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <!-- Vault Footer -->
+                    <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>Persisted locally in your browser Vault</span>
+                      <span id="vault-total-size" class="font-mono font-semibold text-slate-700">0 B</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 7. TESTIMONIAL BLOCK                                                  -->
+    <!-- ===================================================================== -->
+    <section class="py-20 bg-white border-b border-slate-100">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="relative rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/40 border border-slate-200 p-8 sm:p-12 text-center shadow-soft">
+          <svg class="w-10 h-10 text-indigo-200 mx-auto mb-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+          </svg>
+          <blockquote class="text-lg sm:text-2xl font-semibold text-slate-900 leading-relaxed">
+            &ldquo;I used to spend half a weekend wiring up S3 buckets, auth tokens, and cron jobs just so my indie app users wouldn&rsquo;t lose their workspace. With SnapBackup, I dropped in one <code class="font-mono text-indigo-600 text-base sm:text-xl">fetch()</code> call and shipped automatic encrypted backups in 5 minutes flat.&rdquo;
+          </blockquote>
+          <div class="mt-7 flex items-center justify-center gap-3.5">
+            <div class="w-11 h-11 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+              AR
+            </div>
+            <div class="text-left">
+              <div class="text-sm font-bold text-slate-900">Arjun Raghavan</div>
+              <div class="text-xs text-slate-500">Indie Developer &amp; Maker of NotePulse PWA</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 8. FAQ SECTION (INTERACTIVE ACCORDION)                                -->
+    <!-- ===================================================================== -->
+    <section id="faq" class="py-20 sm:py-24 bg-white">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+          <span class="text-xs font-bold uppercase tracking-widest text-indigo-600">Support</span>
+          <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+            Frequently Asked Questions
+          </h2>
+          <p class="mt-3 text-base text-slate-600">
+            Everything you need to know about integrating SnapBackup into your app.
+          </p>
+        </div>
+
+        <div class="divide-y divide-slate-200 border-y border-slate-200" id="faq-accordion">
+          <!-- FAQ 1 -->
+          <div class="faq-item py-5" data-open="true">
+            <button type="button" onclick="toggleFaq(this)" class="w-full flex items-center justify-between gap-4 text-left cursor-pointer group">
+              <span class="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                Is this auto-backup service free?
+              </span>
+              <svg class="faq-chevron w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div class="faq-content">
+              <div class="faq-inner">
+                <p class="pt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+                  Yes! Our Free Starter tier includes up to 2,500 automatic snapshots per month, 30-day version history, and unlimited apps with no credit card required. You can upgrade anytime if you need 3-year retention, team vaults, or S3/Google Drive forwarding.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 2 -->
+          <div class="faq-item py-5" data-open="false">
+            <button type="button" onclick="toggleFaq(this)" class="w-full flex items-center justify-between gap-4 text-left cursor-pointer group">
+              <span class="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                Is it safe to put my Backup Access Key in client-side app code?
+              </span>
+              <svg class="faq-chevron w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div class="faq-content">
+              <div class="faq-inner">
+                <p class="pt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+                  Yes. Your public <code class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">sb_live_</code> Access Key is strictly append-only (write-only) and domain-restricted—just like Web3Forms. It can create new encrypted snapshots, but it cannot list, read, or delete existing backups without your separate read-only Vault Secret or a signed user restore token.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 3 -->
+          <div class="faq-item py-5" data-open="false">
+            <button type="button" onclick="toggleFaq(this)" class="w-full flex items-center justify-between gap-4 text-left cursor-pointer group">
+              <span class="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                How does automatic debounced saving prevent hitting rate limits?
+              </span>
+              <svg class="faq-chevron w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div class="faq-content">
+              <div class="faq-inner">
+                <p class="pt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+                  Instead of firing an HTTP request on every single keystroke, our recommended auto-save helper waits for a brief quiet period (e.g., 1,200ms after the last change) and hashes the payload first. If nothing changed, no request is sent—cutting API calls by up to 95% while keeping backups virtually real-time.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 4 -->
+          <div class="faq-item py-5" data-open="false">
+            <button type="button" onclick="toggleFaq(this)" class="w-full flex items-center justify-between gap-4 text-left cursor-pointer group">
+              <span class="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                How do I restore a backup into my app?
+              </span>
+              <svg class="faq-chevron w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div class="faq-content">
+              <div class="faq-inner">
+                <p class="pt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+                  You can restore programmatically by calling <code class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">GET /v1/restore/latest?app=my-app</code> or by passing a specific <code class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">snapshot_id</code>. Toggle &ldquo;Show Advanced Example&rdquo; in Step 2 to copy the ready-made restore snippet, or export any snapshot as a <code class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">.json</code> file from your Vault.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 5 -->
+          <div class="faq-item py-5" data-open="false">
+            <button type="button" onclick="toggleFaq(this)" class="w-full flex items-center justify-between gap-4 text-left cursor-pointer group">
+              <span class="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                What happens if my user is offline when an auto-save triggers?
+              </span>
+              <svg class="faq-chevron w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div class="faq-content">
+              <div class="faq-inner">
+                <p class="pt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+                  When a network request fails or <code class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">navigator.onLine</code> is false, the advanced snippet caches the latest pending snapshot in <code class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">localStorage</code> and listens for the browser&rsquo;s <code class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">online</code> event to flush it automatically with exponential backoff.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- FAQ 6 -->
+          <div class="faq-item py-5" data-open="false">
+            <button type="button" onclick="toggleFaq(this)" class="w-full flex items-center justify-between gap-4 text-left cursor-pointer group">
+              <span class="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                Can I self-host the backup endpoint?
+              </span>
+              <svg class="faq-chevron w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div class="faq-content">
+              <div class="faq-inner">
+                <p class="pt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+                  Absolutely. Because SnapBackup uses a standard JSON HTTP POST schema, you can point the endpoint URL to your own Cloudflare Worker, Supabase Edge Function, or Docker container anytime—with zero vendor lock-in.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- 9. BOTTOM CTA BANNER                                                  -->
+    <!-- ===================================================================== -->
+    <section class="py-16 sm:py-20 bg-slate-50 border-t border-slate-200/70">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="relative rounded-2xl bg-slate-900 overflow-hidden px-6 py-12 sm:px-12 sm:py-16 text-center shadow-code">
+          <div class="absolute inset-0 bg-gradient-to-tr from-indigo-600/25 via-transparent to-violet-500/20 pointer-events-none"></div>
+          <div class="relative max-w-2xl mx-auto">
+            <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Protect your app&rsquo;s data in under 2 minutes
+            </h2>
+            <p class="mt-3 text-sm sm:text-base text-slate-300">
+              Generate your free Backup Key, copy 10 lines of code, and never lose another user&rsquo;s app state again.
+            </p>
+            <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+              <a href="#step-1" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm sm:text-base shadow-glow transition-all">
+                Create Free Backup Key
+              </a>
+              <button type="button" onclick="openDocsModal()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold text-sm sm:text-base border border-slate-700 transition-all cursor-pointer">
+                Read API Reference
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- FOOTER                                                                -->
+  <!-- ===================================================================== -->
+  <footer class="bg-white border-t border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-8">
+        <!-- Brand Column -->
+        <div class="col-span-2">
+          <a href="#" class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+              </svg>
+            </div>
+            <span class="text-base font-bold text-slate-900">Snap<span class="text-indigo-600">Backup</span></span>
+          </a>
+          <p class="mt-3 text-sm text-slate-500 max-w-xs leading-relaxed">
+            Zero-backend auto-save backup API for modern web, mobile, and desktop apps. Built for speed and developer happiness.
+          </p>
+          <div class="mt-4 inline-flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            All Systems Operational
+          </div>
+        </div>
+
+        <!-- Product -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3.5">Product</h4>
+          <ul class="space-y-2.5 text-sm text-slate-600">
+            <li><a href="#features" class="hover:text-indigo-600 transition-colors">Features</a></li>
+            <li><a href="#how-it-works" class="hover:text-indigo-600 transition-colors">How it Works</a></li>
+            <li><a href="#playground" class="hover:text-indigo-600 transition-colors">Live Playground</a></li>
+            <li><a href="#step-1" class="hover:text-indigo-600 transition-colors">Create Key</a></li>
+          </ul>
+        </div>
+
+        <!-- Resources -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3.5">Resources</h4>
+          <ul class="space-y-2.5 text-sm text-slate-600">
+            <li><button type="button" onclick="openDocsModal()" class="hover:text-indigo-600 transition-colors cursor-pointer">API Documentation</button></li>
+            <li><a href="#step-2" onclick="switchCodeTab('react')" class="hover:text-indigo-600 transition-colors">React Auto-Save Hook</a></li>
+            <li><a href="#step-2" onclick="switchCodeTab('flutter')" class="hover:text-indigo-600 transition-colors">Flutter Guide</a></li>
+            <li><a href="#faq" class="hover:text-indigo-600 transition-colors">FAQ</a></li>
+          </ul>
+        </div>
+
+        <!-- Company & Legal -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3.5">Company &amp; Legal</h4>
+          <ul class="space-y-2.5 text-sm text-slate-600">
+            <li><button type="button" onclick="showToast('SnapBackup v2.4 — AES-256 encrypted snapshots &amp; EU/US edge sync.', 'info')" class="hover:text-indigo-600 transition-colors cursor-pointer">Security</button></li>
+            <li><button type="button" onclick="showToast('We store only encrypted snapshots you explicitly submit. Zero tracking.', 'info')" class="hover:text-indigo-600 transition-colors cursor-pointer">Privacy Policy</button></li>
+            <li><button type="button" onclick="showToast('Free tier: 2,500 snapshots/month with standard fair-use terms.', 'info')" class="hover:text-indigo-600 transition-colors cursor-pointer">Terms of Service</button></li>
+            <li><a href="#step-1" class="hover:text-indigo-600 transition-colors">Contact Support</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-12 pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+        <p>&copy; <span id="footer-year">2026</span> SnapBackup Inc. All rights reserved.</p>
+        <p>Crafted for developers who ship fast.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: SNAPSHOT JSON INSPECTOR                                      -->
+  <!-- ===================================================================== -->
+  <div id="json-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="json-modal-title">
+    <div class="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50">
+        <div class="min-w-0">
+          <h3 id="json-modal-title" class="text-base font-bold text-slate-900 truncate">Snapshot Inspector</h3>
+          <p id="json-modal-meta" class="text-xs font-mono text-slate-500 mt-0.5"></p>
+        </div>
+        <button type="button" onclick="closeJsonModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors cursor-pointer" aria-label="Close modal">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="p-5 bg-slate-900 overflow-auto custom-scroll flex-1">
+        <pre id="json-modal-content" class="font-mono text-xs sm:text-sm leading-6 text-emerald-300"></pre>
+      </div>
+      <div class="px-5 py-3.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-end gap-2.5">
+        <button type="button" onclick="copyModalJson(this)" class="px-3.5 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
+          Copy JSON
+        </button>
+        <button type="button" id="json-modal-download-btn" class="px-3.5 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
+          Download .json
+        </button>
+        <button type="button" id="json-modal-restore-btn" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer">
+          Restore into Editor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: QUICK API DOCUMENTATION                                      -->
+  <!-- ===================================================================== -->
+  <div id="docs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="docs-modal-title">
+    <div class="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div>
+          <h3 id="docs-modal-title" class="text-lg font-bold text-slate-900">SnapBackup API Reference</h3>
+          <p class="text-xs text-slate-500">Base URL: <code class="font-mono text-indigo-600">https://api.snapbackup.dev/v1</code></p>
+        </div>
+        <button type="button" onclick="closeDocsModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 transition-colors cursor-pointer" aria-label="Close docs">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto custom-scroll space-y-6 text-sm text-slate-600">
+        <!-- Endpoint 1 -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 font-mono text-xs font-bold">POST</span>
+            <code class="font-mono text-sm font-semibold text-slate-900">/v1/save</code>
+          </div>
+          <p class="mb-3">Creates a new encrypted JSON snapshot for your application.</p>
+          <div class="rounded-xl bg-slate-900 p-4 overflow-x-auto custom-scroll">
+            <pre id="docs-save-example" class="font-mono text-xs leading-5 text-slate-200"></pre>
+          </div>
+        </div>
+
+        <!-- Endpoint 2 -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-mono text-xs font-bold">GET</span>
+            <code class="font-mono text-sm font-semibold text-slate-900">/v1/restore/:snapshot_id</code>
+          </div>
+          <p class="mb-2">Fetches a saved snapshot payload (or use <code class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">latest</code> as the ID) to hydrate your app state.</p>
+        </div>
+
+        <!-- Payload Fields Table -->
+        <div>
+          <h4 class="font-bold text-slate-900 mb-2">Payload Parameters</h4>
+          <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-700">
+                <tr>
+                  <th class="px-3.5 py-2.5 font-semibold">Field</th>
+                  <th class="px-3.5 py-2.5 font-semibold">Type</th>
+                  <th class="px-3.5 py-2.5 font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="px-3.5 py-2 font-mono text-indigo-700">access_key</td>
+                  <td class="px-3.5 py-2">string (req)</td>
+                  <td class="px-3.5 py-2">Your public write-only backup key from Step 1.</td>
+                </tr>
+                <tr>
+                  <td class="px-3.5 py-2 font-mono text-indigo-700">app_name</td>
+                  <td class="px-3.5 py-2">string</td>
+                  <td class="px-3.5 py-2">Logical namespace for grouping app snapshots.</td>
+                </tr>
+                <tr>
+                  <td class="px-3.5 py-2 font-mono text-indigo-700">data</td>
+                  <td class="px-3.5 py-2">object (req)</td>
+                  <td class="px-3.5 py-2">Arbitrary JSON state object (up to 5 MB per snapshot).</td>
+                </tr>
+                <tr>
+                  <td class="px-3.5 py-2 font-mono text-indigo-700">retention_days</td>
+                  <td class="px-3.5 py-2">number</td>
+                  <td class="px-3.5 py-2">Optional retention window (default: 30, max: 1095).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <button type="button" onclick="closeDocsModal()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TOAST NOTIFICATION CONTAINER                                          -->
+  <!-- ===================================================================== -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-[calc(100%-2.5rem)] pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- APPLICATION LOGIC                                                     -->
+  <!-- ===================================================================== -->
+  <script>
+    /*************************************************************************
+     * 1. STATE & STORAGE CONFIGURATION
+     *************************************************************************/
+    const STORAGE_KEY_VAULT = 'snapbackup_live_vault_v1';
+    const STORAGE_KEY_CONFIG = 'snapbackup_user_config_v1';
+
+    const DEFAULT_KEY_PLACEHOLDER = 'YOUR_BACKUP_KEY_HERE';
+
+    const appState = {
+      accessKey: DEFAULT_KEY_PLACEHOLDER,
+      appName: 'My Todo App',
+      target: 'backups@myapp.dev',
+      interval: 'on_change',
+      activeTab: 'js',
+      advancedMode: false,
+      vault: [],
+      lastHeroSnapshotId: null,
+      clearConfirmArmed: false,
+      clearConfirmTimer: null,
+      debounceTimer: null,
+      modalSnapshotId: null,
+    };
+
+    const INITIAL_PLAYGROUND_DATA = {
+      app: "My Todo App",
+      version: "2.1.0",
+      user_settings: {
+        theme: "indigo-light",
+        auto_sync: true,
+        notifications: "daily"
+      },
+      tasks: [
+        { id: 1, title: "Connect SnapBackup API", done: true },
+        { id: 2, title: "Test debounced auto-save", done: false },
+        { id: 3, title: "Ship v2.1 to production", done: false }
+      ],
+      updated_at: new Date().toISOString()
+    };
+
+    /*************************************************************************
+     * 2. SAFE CLIPBOARD & TOAST UTILITIES (Zero alert()/confirm())
+     *************************************************************************/
+    function copyTextToClipboard(text, buttonEl, successLabel = 'Copied!') {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, text.length);
+        const copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(() => {});
+        }
+
+        if (buttonEl) {
+          const span = buttonEl.querySelector('span') || buttonEl;
+          const original = span.textContent;
+          span.textContent = successLabel;
+          buttonEl.classList.add('ring-2', 'ring-emerald-400/60');
+          setTimeout(() => {
+            span.textContent = original;
+            buttonEl.classList.remove('ring-2', 'ring-emerald-400/60');
+          }, 1600);
+        }
+        showToast('Copied to clipboard', 'success');
+      } catch (err) {
+        showToast('Could not copy automatically. Please copy manually.', 'error');
+      }
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      const styles = {
+        success: 'bg-slate-900 text-white border-emerald-500/40',
+        info:    'bg-slate-900 text-white border-indigo-500/40',
+        error:   'bg-rose-950 text-rose-100 border-rose-500/50',
+      };
+      const dotColor = {
+        success: 'bg-emerald-400',
+        info:    'bg-indigo-400',
+        error:   'bg-rose-400',
+      };
+
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-xl text-xs sm:text-sm font-medium transition-all duration-300 translate-y-2 opacity-0 ${styles[type] || styles.info}`;
+      toast.innerHTML = `
+        <span class="w-2 h-2 rounded-full shrink-0 ${dotColor[type] || dotColor.info}"></span>
+        <span class="flex-1">${escapeHtml(message)}</span>
+      `;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function formatRelativeTime(isoString) {
+      const diffSec = Math.max(0, Math.floor((Date.now() - new Date(isoString).getTime()) / 1000));
+      if (diffSec < 5) return 'Just now';
+      if (diffSec < 60) return `${diffSec}s ago`;
+      const mins = Math.floor(diffSec / 60);
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      return new Date(isoString).toLocaleDateString();
+    }
+
+    /*************************************************************************
+     * 3. SINGLE-PASS SYNTAX HIGHLIGHTER (Safe, zero corrupted HTML tags)
+     *************************************************************************/
+    function highlightCode(rawCode, lang = 'js') {
+      const activeKey = appState.accessKey;
+
+      // Single-pass token pattern covering comments, strings, HTML tags, keywords, numbers
+      const tokenRegex = lang === 'html'
+        ? /(<!--[\s\S]*?-->|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|<\/?[a-zA-Z0-9-]+|\/?>|\b(?:const|let|var|async|await|function|return|if|else|try|catch|new|true|false|null)\b|\b\d+(?:\.\d+)?\b)/g
+        : /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:import|export|from|default|const|let|var|async|await|function|return|if|else|try|catch|new|true|false|null|void|final|class|Future|Map|dynamic|require|process)\b|\b\d+(?:\.\d+)?\b)/g;
+
+      let result = '';
+      let lastIndex = 0;
+      let match;
+
+      while ((match = tokenRegex.exec(rawCode)) !== null) {
+        if (match.index > lastIndex) {
+          result += escapeHtml(rawCode.slice(lastIndex, match.index));
+        }
+
+        const tok = match[0];
+        const safeTok = escapeHtml(tok);
+
+        if (tok.startsWith('//') || tok.startsWith('/*') || tok.startsWith('<!--')) {
+          result += `<span class="tok-comment">${safeTok}</span>`;
+        } else if (tok.startsWith('"') || tok.startsWith("'") || tok.startsWith('`')) {
+          // Highlight the active Backup Key string specially!
+          const inner = tok.slice(1, -1);
+          if (inner === activeKey || inner === DEFAULT_KEY_PLACEHOLDER) {
+            result += `<span class="tok-key-hl" data-key-token="true">${safeTok}</span>`;
+          } else {
+            result += `<span class="tok-string">${safeTok}</span>`;
+          }
+        } else if (tok.startsWith('<') || tok === '>' || tok === '/>') {
+          result += `<span class="tok-tag">${safeTok}</span>`;
+        } else if (/^\d/.test(tok)) {
+          result += `<span class="tok-number">${safeTok}</span>`;
+        } else {
+          result += `<span class="tok-keyword">${safeTok}</span>`;
+        }
+
+        lastIndex = tokenRegex.lastIndex;
+      }
+
+      if (lastIndex < rawCode.length) {
+        result += escapeHtml(rawCode.slice(lastIndex));
+      }
+
+      return result;
+    }
+
+    /*************************************************************************
+     * 4. CODE TEMPLATES (Hero + Step 2 Basic/Advanced + Docs)
+     *************************************************************************/
+    function getHeroSnippet() {
+      const key = appState.accessKey;
+      const app = appState.appName || 'My Todo App';
+      return `// Auto-save your app state in 1 lightweight API call
+const saveAppBackup = async (appState) => {
+  const response = await fetch("https://api.snapbackup.dev/v1/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      access_key: "${key}",
+      app_name: "${app}",
+      trigger: "auto_save",
+      data: appState
+    })
+  });
+
+  const result = await response.json();
+  console.log("Backup saved:", result.snapshot_id);
+};`;
+    }
+
+    function getStep2Snippet(tab, advanced) {
+      const key = appState.accessKey;
+      const app = appState.appName || 'My Todo App';
+      const intervalComment = appState.interval === 'on_change'
+        ? 'Debounced on every change (1.2s)'
+        : appState.interval === '5m'
+          ? 'Scheduled every 5 minutes'
+          : 'Daily automated snapshot';
+      const intervalMs = appState.interval === '5m' ? 300000 : appState.interval === 'daily' ? 86400000 : 1200;
+
+      if (tab === 'js') {
+        if (!advanced) {
+          return `// ${intervalComment}
+async function autoBackup(appState) {
+  const res = await fetch("https://api.snapbackup.dev/v1/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      access_key: "${key}",
+      app_name: "${app}",
+      data: appState
+    })
+  });
+
+  return await res.json();
+}
+
+// Call whenever your app state updates
+autoBackup({ theme: "dark", items: ["Milk", "Coffee"] });`;
+        }
+        return `// Advanced Auto-Backup: Debounce + Offline Queue + BeforeUnload + Restore
+const BACKUP_KEY = "${key}";
+const APP_NAME = "${app}";
+let timer = null;
+
+// 1. Debounced Auto-Save with Offline Fallback
+export function scheduleAutoBackup(state, delay = ${intervalMs}) {
+  clearTimeout(timer);
+  timer = setTimeout(() => syncBackup(state), delay);
+}
+
+async function syncBackup(state) {
+  const payload = {
+    access_key: BACKUP_KEY,
+    app_name: APP_NAME,
+    retention_days: 90,
+    timestamp: new Date().toISOString(),
+    data: state
+  };
+
+  if (!navigator.onLine) {
+    localStorage.setItem("snapbackup_pending", JSON.stringify(payload));
+    return;
+  }
+
+  const res = await fetch("https://api.snapbackup.dev/v1/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+// 2. Flush unsaved backup when user closes tab or comes back online
+window.addEventListener("beforeunload", () => {
+  const pending = localStorage.getItem("snapbackup_pending");
+  if (pending) navigator.sendBeacon("https://api.snapbackup.dev/v1/save", pending);
+});
+window.addEventListener("online", () => {
+  const pending = localStorage.getItem("snapbackup_pending");
+  if (pending) {
+    syncBackup(JSON.parse(pending).data);
+    localStorage.removeItem("snapbackup_pending");
+  }
+});
+
+// 3. Point-in-time Restore Helper
+export async function restoreBackup(snapshotId = "latest") {
+  const res = await fetch(\`https://api.snapbackup.dev/v1/restore/\${snapshotId}?app=\${encodeURIComponent(APP_NAME)}\`, {
+    headers: { "X-Backup-Key": BACKUP_KEY }
+  });
+  return (await res.json()).data;
+}`;
+      }
+
+      if (tab === 'react') {
+        if (!advanced) {
+          return `import { useEffect, useState } from "react";
+
+// Drop-in React hook to auto-backup state on change
+export function useAutoBackup(appState) {
+  const [status, setStatus] = useState("idle");
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      setStatus("saving");
+      await fetch("https://api.snapbackup.dev/v1/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_key: "${key}",
+          app_name: "${app}",
+          data: appState
+        })
+      });
+      setStatus("saved");
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [appState]);
+
+  return status;
+}`;
+        }
+        return `import { useEffect, useRef, useState } from "react";
+
+// Advanced React Hook: Diff check + beforeunload + Restore
+export function useSnapBackup(state, setState) {
+  const [syncState, setSyncState] = useState({ status: "idle", lastId: null });
+  const lastHashRef = useRef("");
+
+  useEffect(() => {
+    const serialized = JSON.stringify(state);
+    if (serialized === lastHashRef.current) return;
+
+    const timer = setTimeout(async () => {
+      setSyncState((s) => ({ ...s, status: "saving" }));
+      try {
+        const res = await fetch("https://api.snapbackup.dev/v1/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            access_key: "${key}",
+            app_name: "${app}",
+            retention_days: 365,
+            data: state
+          })
+        });
+        const json = await res.json();
+        lastHashRef.current = serialized;
+        setSyncState({ status: "saved", lastId: json.snapshot_id });
+      } catch {
+        localStorage.setItem("snapbackup_retry", serialized);
+        setSyncState((s) => ({ ...s, status: "queued_offline" }));
+      }
+    }, ${intervalMs});
+
+    return () => clearTimeout(timer);
+  }, [state]);
+
+  // Restore latest backup on demand
+  const restoreLatest = async () => {
+    const res = await fetch("https://api.snapbackup.dev/v1/restore/latest", {
+      headers: { "X-Backup-Key": "${key}" }
+    });
+    const { data } = await res.json();
+    if (data) setState(data);
+  };
+
+  return { ...syncState, restoreLatest };
+}`;
+      }
+
+      if (tab === 'html') {
+        if (!advanced) {
+          return `<!-- Auto-backup any HTML form or local app state -->
+<script>
+  async function backupNow() {
+    const appData = JSON.parse(localStorage.getItem("my_app_data") || "{}");
+
+    const res = await fetch("https://api.snapbackup.dev/v1/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        access_key: "${key}",
+        app_name: "${app}",
+        data: appData
+      })
+    });
+
+    const result = await res.json();
+    console.log("Saved snapshot:", result.snapshot_id);
+  }
+
+  // Automatically backup every 5 minutes
+  setInterval(backupNow, 300000);
+<\/script>`;
+        }
+        return `<!-- Full Zero-Dependency Auto-Save + Restore Widget -->
+<button id="restoreBtn">Restore Last Backup</button>
+
+<script>
+  const SNAP_KEY = "${key}";
+  let saveTimeout;
+
+  // Triggered whenever an input in your web app changes
+  document.addEventListener("input", () => {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(async () => {
+      const snapshot = { ...localStorage };
+      await fetch("https://api.snapbackup.dev/v1/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_key: SNAP_KEY,
+          app_name: "${app}",
+          retention_days: 90,
+          data: snapshot
+        })
+      });
+    }, 1200);
+  });
+
+  // Safe flush on page exit
+  window.addEventListener("beforeunload", () => {
+    navigator.sendBeacon(
+      "https://api.snapbackup.dev/v1/save",
+      JSON.stringify({ access_key: SNAP_KEY, app_name: "${app}", data: { ...localStorage } })
+    );
+  });
+<\/script>`;
+      }
+
+      if (tab === 'flutter') {
+        if (!advanced) {
+          return `import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+// Call inside your Provider / Riverpod / Bloc state listener
+Future<void> autoSaveBackup(Map<String, dynamic> appState) async {
+  final uri = Uri.parse("https://api.snapbackup.dev/v1/save");
+
+  final response = await http.post(
+    uri,
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "access_key": "${key}",
+      "app_name": "${app}",
+      "data": appState,
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    print("Backup synced: \${response.body}");
+  }
+}`;
+        }
+        return `import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class SnapBackupClient {
+  final String accessKey = "${key}";
+  final String appName = "${app}";
+  Timer? _debounce;
+
+  // Debounced auto-save when app state mutates
+  void scheduleBackup(Map<String, dynamic> state) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 1200), () async {
+      await http.post(
+        Uri.parse("https://api.snapbackup.dev/v1/save"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "access_key": accessKey,
+          "app_name": appName,
+          "retention_days": 180,
+          "data": state,
+        }),
+      );
+    });
+  }
+
+  // Restore latest snapshot back into Flutter app
+  Future<Map<String, dynamic>> restoreLatest() async {
+    final res = await http.get(
+      Uri.parse("https://api.snapbackup.dev/v1/restore/latest"),
+      headers: {"X-Backup-Key": accessKey},
+    );
+    return jsonDecode(res.body)["data"];
+  }
+}`;
+      }
+
+      // Node / CLI
+      if (!advanced) {
+        return `// Node.js 18+ or Cron script for automated app/config backups
+import fs from "node:fs";
+
+const data = JSON.parse(fs.readFileSync("./app-state.json", "utf8"));
+
+const res = await fetch("https://api.snapbackup.dev/v1/save", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    access_key: "${key}",
+    app_name: "${app}",
+    data
+  })
+});
+
+console.log(await res.json());`;
+      }
+      return `// Node.js File Watcher: Auto-backup whenever local JSON DB changes
+import fs from "node:fs";
+
+const FILE_PATH = "./app-state.json";
+let debounce = null;
+
+fs.watch(FILE_PATH, () => {
+  clearTimeout(debounce);
+  debounce = setTimeout(async () => {
+    try {
+      const data = JSON.parse(fs.readFileSync(FILE_PATH, "utf8"));
+      const res = await fetch("https://api.snapbackup.dev/v1/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_key: "${key}",
+          app_name: "${app}",
+          retention_days: 365,
+          trigger: "fs_watch",
+          data
+        })
+      });
+      const out = await res.json();
+      console.log("[SnapBackup] Synced:", out.snapshot_id);
+    } catch (err) {
+      console.error("[SnapBackup] Retry queued:", err.message);
+    }
+  }, 1200);
+});`;
+    }
+
+    /*************************************************************************
+     * 5. RENDERING CODE BLOCKS & KEY INJECTION ACROSS ENTIRE PAGE
+     *************************************************************************/
+    function renderAllCodeSnippets(pulseKeys = false) {
+      // Hero code block
+      const heroEl = document.getElementById('hero-code-display');
+      heroEl.innerHTML = highlightCode(getHeroSnippet(), 'js');
+
+      // Step 2 tabbed code block
+      const step2El = document.getElementById('step2-code-display');
+      const lang = appState.activeTab === 'html' ? 'html' : 'js';
+      step2El.innerHTML = highlightCode(getStep2Snippet(appState.activeTab, appState.advancedMode), lang);
+
+      // Step 3 config line
+      const step3Key = document.getElementById('step3-key-highlight');
+      step3Key.textContent = `"${appState.accessKey}"`;
+
+      // Docs modal snippet
+      const docsSave = document.getElementById('docs-save-example');
+      if (docsSave) {
+        docsSave.innerHTML = highlightCode(`curl -X POST https://api.snapbackup.dev/v1/save \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "access_key": "${appState.accessKey}",
+    "app_name": "${appState.appName}",
+    "data": { "version": "1.0", "items": [] }
+  }'`, 'js');
+      }
+
+      if (pulseKeys) {
+        document.querySelectorAll('[data-key-token="true"], #step3-key-highlight').forEach((el) => {
+          el.classList.remove('animate-key-pulse');
+          void el.offsetWidth;
+          el.classList.add('animate-key-pulse');
+        });
+      }
+    }
+
+    function switchCodeTab(tabName) {
+      appState.activeTab = tabName;
+      document.querySelectorAll('.code-tab').forEach((btn) => {
+        const isActive = btn.dataset.tab === tabName;
+        btn.className = isActive
+          ? 'code-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap bg-indigo-600 text-white shadow-xs'
+          : 'code-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-700/60';
+      });
+      renderAllCodeSnippets(false);
+    }
+
+    function toggleAdvancedCode() {
+      appState.advancedMode = !appState.advancedMode;
+      const label = document.getElementById('advanced-toggle-label');
+      const dot = document.getElementById('advanced-dot');
+      const infoBar = document.getElementById('advanced-info-bar');
+      const btn = document.getElementById('advanced-toggle-btn');
+
+      if (appState.advancedMode) {
+        label.textContent = 'Hide Advanced Example';
+        dot.classList.replace('bg-slate-400', 'bg-indigo-600');
+        infoBar.classList.remove('hidden');
+        btn.classList.add('bg-indigo-50', 'border-indigo-300', 'text-indigo-700');
+      } else {
+        label.textContent = 'Show Advanced Example';
+        dot.classList.replace('bg-indigo-600', 'bg-slate-400');
+        infoBar.classList.add('hidden');
+        btn.classList.remove('bg-indigo-50', 'border-indigo-300', 'text-indigo-700');
+      }
+      renderAllCodeSnippets(false);
+    }
+
+    /*************************************************************************
+     * 6. STEP 1: BACKUP KEY GENERATOR
+     *************************************************************************/
+    function generateCryptoKey() {
+      const chars = 'abcdef0123456789';
+      let hex = '';
+      if (window.crypto && window.crypto.getRandomValues) {
+        const bytes = new Uint8Array(12);
+        window.crypto.getRandomValues(bytes);
+        hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      } else {
+        for (let i = 0; i < 24; i++) {
+          hex += chars[Math.floor(Math.random() * chars.length)];
+        }
+      }
+      return `sb_live_${hex}`;
+    }
+
+    function initKeyGeneratorForm() {
+      const form = document.getElementById('key-generator-form');
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const appInput = document.getElementById('app-name-input').value.trim() || 'My App';
+        const targetInput = document.getElementById('target-input').value.trim() || 'vault@snapbackup.dev';
+        const intervalVal = document.getElementById('interval-select').value;
+
+        appState.appName = appInput;
+        appState.target = targetInput;
+        appState.interval = intervalVal;
+        appState.accessKey = generateCryptoKey();
+
+        saveConfigToStorage();
+        showGeneratedKeyBox();
+        renderAllCodeSnippets(true);
+
+        // Also update the playground editor's app name if valid JSON
+        try {
+          const editor = document.getElementById('playground-json-editor');
+          const parsed = JSON.parse(editor.value);
+          parsed.app = appInput;
+          editor.value = JSON.stringify(parsed, null, 2);
+        } catch (_) {}
+
+        showToast(`Backup key generated & injected into all code snippets!`, 'success');
+      });
+    }
+
+    function showGeneratedKeyBox() {
+      const box = document.getElementById('generated-key-box');
+      const valEl = document.getElementById('generated-key-value');
+      const metaEl = document.getElementById('generated-key-meta');
+      const intervalLabels = {
+        on_change: 'Auto-save on change',
+        '5m': 'Every 5 minutes',
+        daily: 'Daily schedule'
+      };
+
+      valEl.textContent = appState.accessKey;
+      metaEl.textContent = `${appState.appName} • ${appState.target} • ${intervalLabels[appState.interval] || 'Auto-save'}`;
+      box.classList.remove('hidden');
+    }
+
+    function copyCurrentKey(btn) {
+      copyTextToClipboard(appState.accessKey, btn, 'Key Copied!');
+    }
+
+    function copyHeroCode(btn) {
+      copyTextToClipboard(getHeroSnippet(), btn, 'Copied!');
+    }
+
+    function copyStep2Code(btn) {
+      copyTextToClipboard(getStep2Snippet(appState.activeTab, appState.advancedMode), btn, 'Copied!');
+    }
+
+    function copyConfigLine(btn) {
+      copyTextToClipboard(`const config = { access_key: "${appState.accessKey}" };`, btn, 'Copied!');
+    }
+
+    /*************************************************************************
+     * 7. HERO "RUN THIS CODE" LIVE SIMULATION
+     *************************************************************************/
+    function runHeroCode() {
+      const runBtn = document.getElementById('hero-run-btn');
+      const runIcon = document.getElementById('hero-run-icon');
+      const spinner = document.getElementById('hero-run-spinner');
+      const label = document.getElementById('hero-run-label');
+      const banner = document.getElementById('hero-response-banner');
+      const jsonOut = document.getElementById('hero-response-json');
+      const latencyEl = document.getElementById('hero-response-latency');
+
+      runBtn.disabled = true;
+      runIcon.classList.add('hidden');
+      spinner.classList.remove('hidden');
+      label.textContent = 'Syncing Snapshot...';
+
+      const simulatedLatency = 26 + Math.floor(Math.random() * 24);
+
+      setTimeout(() => {
+        // Grab current editor JSON or fallback sample
+        let payloadData;
+        try {
+          payloadData = JSON.parse(document.getElementById('playground-json-editor').value);
+        } catch {
+          payloadData = { ...INITIAL_PLAYGROUND_DATA, app: appState.appName };
+        }
+        payloadData.updated_at = new Date().toISOString();
+
+        const snapshot = addSnapshotToVault(payloadData, 'Hero Run');
+        appState.lastHeroSnapshotId = snapshot.id;
+
+        const apiResponse = {
+          success: true,
+          snapshot_id: snapshot.id,
+          app_name: snapshot.appName,
+          bytes: snapshot.size,
+          encrypted: "AES-256-GCM",
+          saved_at: snapshot.createdAt
+        };
+
+        latencyEl.textContent = `${simulatedLatency}ms`;
+        jsonOut.textContent = JSON.stringify(apiResponse, null, 2);
+        banner.classList.remove('hidden');
+
+        runBtn.disabled = false;
+        runIcon.classList.remove('hidden');
+        spinner.classList.add('hidden');
+        label.textContent = 'Run this Code';
+
+        showToast(`200 OK — Saved ${snapshot.id} to Live Vault!`, 'success');
+      }, 480);
+    }
+
+    function inspectLastHeroSnapshot() {
+      const playgroundEl = document.getElementById('playground');
+      playgroundEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (appState.lastHeroSnapshotId) {
+        setTimeout(() => openJsonModal(appState.lastHeroSnapshotId), 420);
+      }
+    }
+
+    /*************************************************************************
+     * 8. LIVE AUTO-SAVE PLAYGROUND & VAULT (PERSISTED IN LOCALSTORAGE)
+     *************************************************************************/
+    function generateSnapshotId() {
+      const rand = Math.random().toString(36).substring(2, 10);
+      return `snap_${rand}`;
+    }
+
+    function addSnapshotToVault(dataObj, trigger = 'Auto-Save') {
+      const jsonString = JSON.stringify(dataObj, null, 2);
+      const byteSize = new Blob([jsonString]).size;
+
+      const snapshot = {
+        id: generateSnapshotId(),
+        appName: dataObj.app || appState.appName || 'My App',
+        trigger,
+        size: byteSize,
+        accessKeyPreview: appState.accessKey.slice(0, 12) + '...',
+        createdAt: new Date().toISOString(),
+        data: dataObj
+      };
+
+      appState.vault.unshift(snapshot);
+      // Keep max 30 snapshots locally for snappy UX
+      if (appState.vault.length > 30) {
+        appState.vault = appState.vault.slice(0, 30);
+      }
+
+      persistVault();
+      renderVault();
+      return snapshot;
+    }
+
+    function persistVault() {
+      try {
+        localStorage.setItem(STORAGE_KEY_VAULT, JSON.stringify(appState.vault));
+      } catch (err) {
+        showToast('Browser storage full. Delete old snapshots to free space.', 'error');
+      }
+    }
+
+    function saveConfigToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({
+          accessKey: appState.accessKey,
+          appName: appState.appName,
+          target: appState.target,
+          interval: appState.interval
+        }));
+      } catch (_) {}
+    }
+
+    function loadPersistedState() {
+      try {
+        const savedConfig = localStorage.getItem(STORAGE_KEY_CONFIG);
+        if (savedConfig) {
+          const cfg = JSON.parse(savedConfig);
+          if (cfg.accessKey) appState.accessKey = cfg.accessKey;
+          if (cfg.appName) appState.appName = cfg.appName;
+          if (cfg.target) appState.target = cfg.target;
+          if (cfg.interval) appState.interval = cfg.interval;
+
+          document.getElementById('app-name-input').value = appState.appName;
+          document.getElementById('target-input').value = appState.target;
+          document.getElementById('interval-select').value = appState.interval;
+
+          if (appState.accessKey !== DEFAULT_KEY_PLACEHOLDER) {
+            showGeneratedKeyBox();
+          }
+        }
+      } catch (_) {}
+
+      try {
+        const savedVault = localStorage.getItem(STORAGE_KEY_VAULT);
+        if (savedVault) {
+          const parsed = JSON.parse(savedVault);
+          if (Array.isArray(parsed)) {
+            appState.vault = parsed;
+          }
+        }
+      } catch (_) {}
+
+      // Seed 1 clean starter snapshot on first visit so users can explore View/Restore/Download right away
+      if (appState.vault.length === 0) {
+        addSnapshotToVault(INITIAL_PLAYGROUND_DATA, 'Initial Sync');
+      }
+    }
+
+    function setAutoSaveStatus(mode, text) {
+      const pill = document.getElementById('autosave-status-pill');
+      const dot = document.getElementById('autosave-status-dot');
+      const label = document.getElementById('autosave-status-text');
+
+      label.textContent = text;
+      pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-all ';
+      dot.className = 'w-1.5 h-1.5 rounded-full ';
+
+      if (mode === 'saving') {
+        pill.className += 'bg-amber-50 text-amber-700 border-amber-200';
+        dot.className += 'bg-amber-500 animate-ping';
+      } else if (mode === 'error') {
+        pill.className += 'bg-rose-50 text-rose-700 border-rose-200';
+        dot.className += 'bg-rose-500';
+      } else {
+        pill.className += 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        dot.className += 'bg-emerald-500';
+      }
+    }
+
+    function saveSnapshotFromEditor(trigger = 'Auto-Save') {
+      const editor = document.getElementById('playground-json-editor');
+      const errorBar = document.getElementById('json-error-bar');
+
+      try {
+        const parsed = JSON.parse(editor.value);
+        errorBar.classList.add('hidden');
+        addSnapshotToVault(parsed, trigger);
+        setAutoSaveStatus('saved', trigger === 'Auto-Save' ? 'Saved just now' : 'Snapshot saved');
+        if (trigger === 'Manual') {
+          showToast('Manual snapshot saved to Live Vault!', 'success');
+        }
+      } catch (err) {
+        errorBar.textContent = `JSON Syntax Error: ${err.message}`;
+        errorBar.classList.remove('hidden');
+        setAutoSaveStatus('error', 'Invalid JSON');
+      }
+    }
+
+    function initPlaygroundEditor() {
+      const editor = document.getElementById('playground-json-editor');
+      const toggle = document.getElementById('autosave-toggle');
+      const errorBar = document.getElementById('json-error-bar');
+
+      // Load latest vault item or initial sample into editor
+      const initialData = appState.vault.length > 0 ? appState.vault[0].data : INITIAL_PLAYGROUND_DATA;
+      editor.value = JSON.stringify(initialData, null, 2);
+
+      editor.addEventListener('input', () => {
+        // Immediate syntax validation feedback
+        try {
+          JSON.parse(editor.value);
+          errorBar.classList.add('hidden');
+        } catch (err) {
+          errorBar.textContent = `JSON Syntax Error: ${err.message}`;
+          errorBar.classList.remove('hidden');
+          setAutoSaveStatus('error', 'Invalid JSON');
+          clearTimeout(appState.debounceTimer);
+          return;
+        }
+
+        if (!toggle.checked) {
+          setAutoSaveStatus('saved', 'Auto-save paused');
+          return;
+        }
+
+        // Real 1.2s debounced auto-save!
+        setAutoSaveStatus('saving', 'Saving...');
+        clearTimeout(appState.debounceTimer);
+        appState.debounceTimer = setTimeout(() => {
+          saveSnapshotFromEditor('Auto-Save');
+        }, 1200);
+      });
+
+      toggle.addEventListener('change', () => {
+        if (toggle.checked) {
+          setAutoSaveStatus('saved', 'Auto-save enabled');
+          showToast('Auto-Save on Edit enabled (1.2s debounce)', 'info');
+        } else {
+          clearTimeout(appState.debounceTimer);
+          setAutoSaveStatus('saved', 'Manual mode');
+          showToast('Auto-Save paused. Use "Save Snapshot Now" to save manually.', 'info');
+        }
+      });
+    }
+
+    function formatPlaygroundJson() {
+      const editor = document.getElementById('playground-json-editor');
+      try {
+        const parsed = JSON.parse(editor.value);
+        editor.value = JSON.stringify(parsed, null, 2);
+        document.getElementById('json-error-bar').classList.add('hidden');
+        showToast('JSON formatted cleanly', 'info');
+      } catch (err) {
+        showToast('Fix JSON syntax error before formatting', 'error');
+      }
+    }
+
+    function mutateSampleState() {
+      const editor = document.getElementById('playground-json-editor');
+      try {
+        const parsed = JSON.parse(editor.value);
+        if (!Array.isArray(parsed.tasks)) parsed.tasks = [];
+        const nextId = parsed.tasks.length + 1;
+        const sampleTitles = [
+          'Enable daily Google Drive export',
+          'Add offline retry indicator',
+          'Verify AES-256 restore flow',
+          'Sync user theme preferences',
+          'Backup local IndexedDB cache'
+        ];
+        parsed.tasks.push({
+          id: nextId,
+          title: sampleTitles[(nextId - 1) % sampleTitles.length],
+          done: false
+        });
+        parsed.updated_at = new Date().toISOString();
+        editor.value = JSON.stringify(parsed, null, 2);
+
+        // Trigger the exact same input pipeline so debounced auto-save visibly runs!
+        editor.dispatchEvent(new Event('input'));
+      } catch (err) {
+        editor.value = JSON.stringify({ ...INITIAL_PLAYGROUND_DATA, updated_at: new Date().toISOString() }, null, 2);
+        editor.dispatchEvent(new Event('input'));
+      }
+    }
+
+    function renderVault() {
+      const listEl = document.getElementById('vault-list');
+      const navCount = document.getElementById('nav-vault-count');
+      const panelCount = document.getElementById('vault-panel-count');
+      const totalSizeEl = document.getElementById('vault-total-size');
+
+      navCount.textContent = appState.vault.length;
+      panelCount.textContent = appState.vault.length;
+
+      const totalBytes = appState.vault.reduce((acc, item) => acc + (item.size || 0), 0);
+      totalSizeEl.textContent = formatBytes(totalBytes);
+
+      if (appState.vault.length === 0) {
+        listEl.innerHTML = `
+          <div class="p-8 text-center">
+            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+            </div>
+            <p class="text-sm font-semibold text-slate-700">Your Live Vault is empty</p>
+            <p class="text-xs text-slate-500 mt-1">Edit the JSON on the left or click "Run this Code" in the Hero to create a snapshot.</p>
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = appState.vault.map((snap, idx) => {
+        const badgeStyles = snap.trigger === 'Hero Run'
+          ? 'bg-violet-50 text-violet-700 border-violet-200'
+          : snap.trigger === 'Auto-Save'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-indigo-50 text-indigo-700 border-indigo-200';
+
+        return `
+          <div class="p-3.5 hover:bg-slate-50/90 transition-colors ${idx === 0 ? 'bg-indigo-50/25' : ''}">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="font-mono text-xs font-bold text-slate-900">${escapeHtml(snap.id)}</span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border ${badgeStyles}">${escapeHtml(snap.trigger)}</span>
+                  ${idx === 0 ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-900 text-white">Latest</span>' : ''}
+                </div>
+                <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-slate-500">
+                  <span class="font-medium text-slate-700 truncate max-w-[140px]">${escapeHtml(snap.appName)}</span>
+                  <span>•</span>
+                  <span class="font-mono">${formatBytes(snap.size)}</span>
+                  <span>•</span>
+                  <span title="${new Date(snap.createdAt).toLocaleString()}">${formatRelativeTime(snap.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <button type="button" onclick="openJsonModal('${snap.id}')" class="px-2.5 py-1 rounded-md bg-white hover:bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer">
+                View JSON
+              </button>
+              <button type="button" onclick="restoreSnapshot('${snap.id}')" class="px-2.5 py-1 rounded-md bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 text-[11px] font-semibold text-indigo-700 hover:text-white transition-colors cursor-pointer">
+                Restore
+              </button>
+              <button type="button" onclick="downloadSnapshot('${snap.id}')" class="px-2.5 py-1 rounded-md bg-white hover:bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700 transition-colors cursor-pointer">
+                Download .json
+              </button>
+              <button type="button" onclick="deleteSnapshot('${snap.id}')" class="ml-auto px-2 py-1 rounded-md text-[11px] font-semibold text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer" title="Delete snapshot">
+                Delete
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function restoreSnapshot(id) {
+      const snap = appState.vault.find((s) => s.id === id);
+      if (!snap) return;
+
+      const editor = document.getElementById('playground-json-editor');
+      clearTimeout(appState.debounceTimer);
+      editor.value = JSON.stringify(snap.data, null, 2);
+      document.getElementById('json-error-bar').classList.add('hidden');
+      setAutoSaveStatus('saved', `Restored ${snap.id}`);
+      closeJsonModal();
+      showToast(`Restored snapshot ${snap.id} into editor!`, 'success');
+    }
+
+    function downloadSnapshot(id) {
+      const snap = appState.vault.find((s) => s.id === id);
+      if (!snap) return;
+
+      const blob = new Blob([JSON.stringify(snap.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${snap.id}-${snap.appName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast(`Downloaded ${snap.id}.json`, 'info');
+    }
+
+    function deleteSnapshot(id) {
+      appState.vault = appState.vault.filter((s) => s.id !== id);
+      persistVault();
+      renderVault();
+      showToast(`Deleted snapshot ${id}`, 'info');
+    }
+
+    function handleClearVaultClick() {
+      const btn = document.getElementById('clear-vault-btn');
+      if (appState.vault.length === 0) {
+        showToast('Vault is already empty', 'info');
+        return;
+      }
+
+      // Two-step inline confirmation (never uses window.confirm)
+      if (!appState.clearConfirmArmed) {
+        appState.clearConfirmArmed = true;
+        btn.textContent = 'Click again to confirm';
+        btn.classList.add('text-rose-600', 'font-bold');
+        clearTimeout(appState.clearConfirmTimer);
+        appState.clearConfirmTimer = setTimeout(() => {
+          appState.clearConfirmArmed = false;
+          btn.textContent = 'Clear All';
+          btn.classList.remove('text-rose-600', 'font-bold');
+        }, 3500);
+        return;
+      }
+
+      clearTimeout(appState.clearConfirmTimer);
+      appState.clearConfirmArmed = false;
+      btn.textContent = 'Clear All';
+      btn.classList.remove('text-rose-600', 'font-bold');
+
+      appState.vault = [];
+      persistVault();
+      renderVault();
+      showToast('Cleared all saved snapshots from Vault', 'info');
+    }
+
+    /*************************************************************************
+     * 9. MODALS, FAQ ACCORDION & MOBILE NAV
+     *************************************************************************/
+    function openJsonModal(id) {
+      const snap = appState.vault.find((s) => s.id === id);
+      if (!snap) return;
+
+      appState.modalSnapshotId = id;
+      document.getElementById('json-modal-title').textContent = `Snapshot ${snap.id}`;
+      document.getElementById('json-modal-meta').textContent = `${snap.appName} • ${snap.trigger} • ${formatBytes(snap.size)} • ${new Date(snap.createdAt).toLocaleString()}`;
+      document.getElementById('json-modal-content').textContent = JSON.stringify(snap.data, null, 2);
+
+      document.getElementById('json-modal-download-btn').onclick = () => downloadSnapshot(id);
+      document.getElementById('json-modal-restore-btn').onclick = () => restoreSnapshot(id);
+
+      document.getElementById('json-modal').classList.remove('hidden');
+    }
+
+    function closeJsonModal() {
+      document.getElementById('json-modal').classList.add('hidden');
+      appState.modalSnapshotId = null;
+    }
+
+    function copyModalJson(btn) {
+      const content = document.getElementById('json-modal-content').textContent;
+      copyTextToClipboard(content, btn, 'Copied!');
+    }
+
+    function openDocsModal() {
+      renderAllCodeSnippets(false);
+      document.getElementById('docs-modal').classList.remove('hidden');
+    }
+
+    function closeDocsModal() {
+      document.getElementById('docs-modal').classList.add('hidden');
+    }
+
+    function toggleFaq(buttonEl) {
+      const item = buttonEl.closest('.faq-item');
+      const isOpen = item.getAttribute('data-open') === 'true';
+      item.setAttribute('data-open', isOpen ? 'false' : 'true');
+    }
+
+    function toggleMobileMenu(forceState) {
+      const menu = document.getElementById('mobile-menu');
+      const btn = document.getElementById('mobile-menu-btn');
+      const shouldOpen = typeof forceState === 'boolean' ? forceState : menu.classList.contains('hidden');
+      menu.classList.toggle('hidden', !shouldOpen);
+      btn.setAttribute('aria-expanded', String(shouldOpen));
+    }
+
+    /*************************************************************************
+     * 10. INITIALIZATION
+     *************************************************************************/
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+      // Mobile menu listeners
+      document.getElementById('mobile-menu-btn').addEventListener('click', () => toggleMobileMenu());
+      document.querySelectorAll('.mobile-nav-link').forEach((link) => {
+        link.addEventListener('click', () => toggleMobileMenu(false));
+      });
+
+      // Close modals on backdrop click or Escape key
+      ['json-modal', 'docs-modal'].forEach((modalId) => {
+        document.getElementById(modalId).addEventListener('click', (e) => {
+          if (e.target.id === modalId) {
+            modalId === 'json-modal' ? closeJsonModal() : closeDocsModal();
+          }
+        });
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeJsonModal();
+          closeDocsModal();
+        }
+      });
+
+      // Boot app state & UI
+      loadPersistedState();
+      initKeyGeneratorForm();
+      initPlaygroundEditor();
+      switchCodeTab('js');
+      renderVault();
+
+      // Periodically refresh relative timestamps in Vault
+      setInterval(() => {
+        if (appState.vault.length > 0) renderVault();
+      }, 30000);
+    });
+  </script>
+</body>
+</html>
